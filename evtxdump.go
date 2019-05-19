@@ -25,6 +25,51 @@ func showStats(stats []EventStats) {
 	}
 }
 
+func containsEvent(stats []EventStats, eventID int64) (bool, int) {
+	for i, s := range stats {
+		if s.EventID == eventID {
+			return true, i
+		}
+	}
+	return false, -1
+}
+
+func evtx2json(evtxFile string) []EventStats {
+	ef, err := evtx.New(evtxFile)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil
+	}
+
+	outputFile := getFileNameWithoutExt(evtxFile) + ".json"
+	of, err := os.OpenFile(outputFile, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return nil
+	}
+	defer of.Close()
+
+	stats := []EventStats{}
+
+	// Begin JSON
+	fmt.Fprintln(of, "[")
+	for e := range ef.FastEvents() {
+		contains, num := containsEvent(stats, e.EventID())
+		if !contains {
+			newStats := EventStats{e.Channel(), e.EventID(), 1}
+			stats = append(stats, newStats)
+		} else {
+			stats[num].Count++
+		}
+		// Append Event to JSON
+		fmt.Fprintf(of, "\t%s,\n", string(evtx.ToJSON(e)))
+	}
+	fmt.Fprintf(of, "\t{}\n]")
+	// End JSON
+
+	return stats
+}
+
 func main() {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %[1]s FILES...\n", filepath.Base(os.Args[0]))
@@ -35,39 +80,8 @@ func main() {
 
 	stats := []EventStats{}
 	for _, evtxFile := range flag.Args() {
-		ef, err := evtx.New(evtxFile)
-		if err != nil {
-			fmt.Println("Error:", err)
-			continue
-		}
-
-		outputFile := getFileNameWithoutExt(evtxFile) + ".json"
-		of, err := os.OpenFile(outputFile, os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			fmt.Println("Error:", err)
-			continue
-		}
-		defer of.Close()
-
-		// Begin JSON
-		fmt.Fprintln(of, "[")
-		for e := range ef.FastEvents() {
-			contains := false
-			for i, s := range stats {
-				if s.EventID == e.EventID() {
-					stats[i].Count++
-					contains = true
-					break
-				}
-			}
-			if !contains {
-				newStats := EventStats{e.Channel(), e.EventID(), 1}
-				stats = append(stats, newStats)
-			}
-			fmt.Fprintf(of, "\t%s,\n", string(evtx.ToJSON(e)))
-		}
-		fmt.Fprintf(of, "\t{}\n]")
-		// End JSON
+		newStats := evtx2json(evtxFile)
+		stats = append(stats, newStats...)
 	}
 	showStats(stats)
 }
