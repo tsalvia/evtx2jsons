@@ -24,8 +24,16 @@ func showStats(stats []EventStats) {
 }
 
 func outputJsonFiles(stats []EventStats) {
+	outputDir := "output"
+	if _, err := os.Stat(outputDir); err != nil {
+		if err = os.Mkdir(outputDir, 0777); err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+	}
+
 	for _, s := range stats {
-		outputFile := s.Channel + "_" + strconv.FormatInt(s.EventID, 10) + ".json"
+		outputFile := outputDir + "/" + s.Channel + "_" + strconv.FormatInt(s.EventID, 10) + ".json"
 		of, err := os.OpenFile(outputFile, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
 			fmt.Println("Error:", err)
