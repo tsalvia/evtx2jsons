@@ -23,16 +23,16 @@ func showStats(stats []EventStats) {
 	}
 }
 
-func outputJsonFiles(stats []EventStats) {
-	outputDir := "output"
+func outputJsonFiles(outputDir string, stats []EventStats) {
 	if _, err := os.Stat(outputDir); err != nil {
-		if err = os.Mkdir(outputDir, 0777); err != nil {
+		if err = os.MkdirAll(outputDir, 0777); err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
 	}
 
 	for _, s := range stats {
+		// Example: output/Security_4624.json
 		outputFile := outputDir + "/" + s.Channel + "_" + strconv.FormatInt(s.EventID, 10) + ".json"
 		of, err := os.OpenFile(outputFile, os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
@@ -45,7 +45,7 @@ func outputJsonFiles(stats []EventStats) {
 		for _, evtxJson := range s.EvtxJsons {
 			fmt.Fprintf(of, "\t%s,\n", evtxJson)
 		}
-		fmt.Fprintln(of, "\t{}\n]")
+		fmt.Fprintln(of, "\t{}\n]") // {} is terminator.
 	}
 }
 
@@ -83,18 +83,42 @@ func evtx2json(evtxFile string) []EventStats {
 }
 
 func main() {
+	var (
+		input string
+		outputDir string
+	)
+
+	// Setting Options
+	flag.StringVar(&input, "i", "", "This option is a short version of \"--input\" option.")
+	flag.StringVar(&input, "input", "", "This option is required.\nSpecifies the EVTX file you want to convert to JSON file.")
+	flag.StringVar(&outputDir, "d", "", "This option is a short version of \"--directory\" option.")
+	flag.StringVar(&outputDir, "directory", "output", "Specifies the destination directory for the converted files. \n")
+
+	// Setting Help
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %[1]s FILES...\n", filepath.Base(os.Args[0]))
+		filename := filepath.Base(os.Args[0])
+		// Usage
+		fmt.Fprintf(os.Stderr, "\n%[1]s\n", filename)
+		fmt.Fprintf(os.Stderr, "\n  Convert EVTX file to JSON files.\n")
+		// Options
+		fmt.Fprintf(os.Stderr, "\nOptions\n\n")
 		flag.PrintDefaults()
+		// Examples
+		fmt.Fprintf(os.Stderr, "\nExamples\n")
+		fmt.Fprintf(os.Stderr, "\n  1. Specifying input files only.\t$ %s -i Security.evtx\n", filename)
+		fmt.Fprintf(os.Stderr, "\n")
 		os.Exit(0)
 	}
+
 	flag.Parse()
 
-	stats := []EventStats{}
-	for _, evtxFile := range flag.Args() {
-		newStats := evtx2json(evtxFile)
-		stats = append(stats, newStats...)
+	if input == "" {
+		fmt.Fprintf(os.Stderr, "Error: No EVTX file specified. Use the \"--input\" or \"-i\" option.\n")
+		fmt.Fprintf(os.Stderr, "       For more information, try to use the \"--help\" or \"-h\" option to show help.\n")
+		os.Exit(0)
 	}
-	outputJsonFiles(stats)
-	showStats(stats)
+
+	stats := evtx2json(input)
+	outputJsonFiles(outputDir, stats)
+	// showStats(stats)
 }
