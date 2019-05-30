@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"path/filepath"
 	"github.com/0xrawsec/golang-evtx/evtx"
 )
@@ -49,6 +50,27 @@ func outputJsonFiles(outputDir string, stats []EventStats) {
 	}
 }
 
+func parseTargetIDsOption(targetIDsOption string) []int64 {
+	targetIDs := []int64{}
+	if targetIDsOption != "" {
+		sliceIDs := strings.Split(targetIDsOption, ",")
+		for _, strID := range sliceIDs {
+			id, _ := strconv.ParseInt(strID, 10, 64)
+			targetIDs = append(targetIDs, id)
+		}
+	}
+	return targetIDs
+}
+
+func containsTargetEventID(currentEventID int64, targetIDs []int64) bool {
+	for _, targetID := range targetIDs {
+		if currentEventID == targetID {
+			return true
+		}
+	}
+	return false
+}
+
 func containsEvent(stats []EventStats, eventID int64) (bool, int) {
 	for i, s := range stats {
 		if s.EventID == eventID {
@@ -58,7 +80,7 @@ func containsEvent(stats []EventStats, eventID int64) (bool, int) {
 	return false, -1
 }
 
-func evtx2json(evtxFile string) []EventStats {
+func evtx2json(evtxFile string, targetIDs []int64) []EventStats {
 	ef, err := evtx.New(evtxFile)
 	if err != nil {
 		fmt.Println("Error:", err)
@@ -68,6 +90,10 @@ func evtx2json(evtxFile string) []EventStats {
 	stats := []EventStats{}
 
 	for e := range ef.FastEvents() {
+		if len(targetIDs) != 0 && !containsTargetEventID(e.EventID(), targetIDs) {
+			continue
+		}
+
 		contains, num := containsEvent(stats, e.EventID())
 		evtxJson := string(evtx.ToJSON(e))
 		if !contains {
@@ -86,6 +112,7 @@ func main() {
 	var (
 		input string
 		outputDir string
+		ids string
 	)
 
 	// Setting Options
@@ -93,19 +120,25 @@ func main() {
 	flag.StringVar(&input, "input", "", "This option is required.\nSpecifies the EVTX file you want to convert to JSON file.")
 	flag.StringVar(&outputDir, "d", "", "This option is a short version of \"--directory\" option.")
 	flag.StringVar(&outputDir, "directory", "output", "Specifies the destination directory for the converted files. \n")
+	flag.StringVar(&ids, "ids", "", "Specifies the event ID you want to output JOSN files.\nUse \",\" to separate multiple IDs.\n(default All Event IDs)")
 
 	// Setting Help
 	flag.Usage = func() {
 		filename := filepath.Base(os.Args[0])
 		// Usage
 		fmt.Fprintf(os.Stderr, "\n%[1]s\n", filename)
-		fmt.Fprintf(os.Stderr, "\n  Convert EVTX file to JSON files.\n")
+		fmt.Fprintf(os.Stderr, "\n  Parse the EVTX file and output it in JSON format.\n")
 		// Options
 		fmt.Fprintf(os.Stderr, "\nOptions\n\n")
 		flag.PrintDefaults()
 		// Examples
-		fmt.Fprintf(os.Stderr, "\nExamples\n")
-		fmt.Fprintf(os.Stderr, "\n  1. Specifying input files only.\t$ %s -i Security.evtx\n", filename)
+		fmt.Fprintf(os.Stderr, "\nExamples\n\n")
+		fmt.Fprintf(os.Stderr, "  1. Basic Usage\n")
+		fmt.Fprintf(os.Stderr, "\t$ %s -i Security.evtx\n", filename)
+		fmt.Fprintf(os.Stderr, "  2. Specify the event IDs you want to output.\n")
+		fmt.Fprintf(os.Stderr, "\t$ %s -i Security.evtx -ids 4624,4625,1102 \n", filename)
+		fmt.Fprintf(os.Stderr, "  3. Specify the destination directory.\n")
+		fmt.Fprintf(os.Stderr, "\t$ %s -i Security.evtx -d output/jsons \n", filename)
 		fmt.Fprintf(os.Stderr, "\n")
 		os.Exit(0)
 	}
@@ -118,7 +151,9 @@ func main() {
 		os.Exit(0)
 	}
 
-	stats := evtx2json(input)
+	targetIDs := parseTargetIDsOption(ids)
+
+	stats := evtx2json(input, targetIDs)
 	outputJsonFiles(outputDir, stats)
-	// showStats(stats)
+	showStats(stats)
 }
