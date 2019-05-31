@@ -1,4 +1,4 @@
-# evtxdump
+# evtx2jsons
 
 Parse the EVTX file and output it in JSON format.
 
@@ -6,13 +6,13 @@ Parse the EVTX file and output it in JSON format.
 
 ```
 go get -u github.com/0xrawsec/golang-evtx/evtx
-go build evtxdump.go
+go build evtx2jsons.go
 ```
 
 ## Usage
 
 ```
-$ evtxdump.exe -i Security.evtx
+$ evtx2jsons.exe -i Security.evtx
 ```
 
 ## Options
@@ -38,15 +38,15 @@ $ evtxdump.exe -i Security.evtx
 
 1. Basic Usage
     ```
-    $ evtxdump.exe -i Security.evtx
+    $ evtx2jsons.exe -i Security.evtx
     ```
 
 2. Specify the event IDs you want to output.
     ```
-    $ evtxdump.exe -i Security.evtx -ids 4624,4625,1102
+    $ evtx2jsons.exe -i Security.evtx -ids 4624,4625,1102
     ```
 
 3. Specify the destination directory.
     ```
-    $ evtxdump.exe -i Security.evtx -d output/jsons
+    $ evtx2jsons.exe -i Security.evtx -d output/jsons
     ```
